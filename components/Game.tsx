@@ -262,6 +262,151 @@ export default function Game({ onFim }: { onFim: (pontos: number) => void }) {
       }
     };
 
+    // Desenha uma açaizeira de fundo (tronco curvo, palmas que balançam, cachos de açaí).
+    const desenharAcaizeira = (
+      rootX: number,
+      rootY: number,
+      crownX: number,
+      crownY: number,
+      agora: number,
+      phase: number,
+      centerAng: number,
+      spread: number
+    ) => {
+      const wd = dimRef.current.w;
+      ctx.save();
+      ctx.globalAlpha = 0.42;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      const ctrlX = (rootX + crownX) / 2 + (crownX - rootX) * 0.4;
+      const ctrlY = (rootY + crownY) / 2;
+      const pontoTronco = (t: number): [number, number] => [
+        (1 - t) * (1 - t) * rootX + 2 * (1 - t) * t * ctrlX + t * t * crownX,
+        (1 - t) * (1 - t) * rootY + 2 * (1 - t) * t * ctrlY + t * t * crownY,
+      ];
+
+      // Tronco.
+      const tg = ctx.createLinearGradient(rootX, rootY, crownX, crownY);
+      tg.addColorStop(0, "#4a3a2c");
+      tg.addColorStop(1, "#7a6349");
+      ctx.strokeStyle = tg;
+      ctx.lineWidth = Math.max(6, wd * 0.02);
+      ctx.beginPath();
+      ctx.moveTo(rootX, rootY);
+      ctx.quadraticCurveTo(ctrlX, ctrlY, crownX, crownY);
+      ctx.stroke();
+
+      // Anéis do tronco.
+      ctx.strokeStyle = "rgba(0,0,0,0.22)";
+      ctx.lineWidth = 2;
+      for (let t = 0.2; t < 0.95; t += 0.13) {
+        const [mx, my] = pontoTronco(t);
+        ctx.beginPath();
+        ctx.moveTo(mx - wd * 0.012, my);
+        ctx.lineTo(mx + wd * 0.012, my);
+        ctx.stroke();
+      }
+
+      // Cachos de açaí pendurados sob a copa.
+      for (const ox of [-0.02, 0.03, 0.0]) {
+        const bx = crownX + wd * ox;
+        const by = crownY + wd * 0.05;
+        for (let k = 0; k < 14; k++) {
+          ctx.beginPath();
+          ctx.fillStyle = k % 4 === 0 ? "#4a1568" : "#2b0d3f";
+          ctx.arc(
+            bx + (Math.random() - 0.5) * wd * 0.05,
+            by + Math.random() * wd * 0.08,
+            wd * 0.009,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+        }
+      }
+
+      // Palmas (folhas em leque, abertas pra fora, com folíolos e leve balanço).
+      const nFrondes = 9;
+      const comprimento = dimRef.current.h * 0.15;
+      for (let i = 0; i < nFrondes; i++) {
+        const frac = i / (nFrondes - 1);
+        const baseAng = centerAng - spread + frac * spread * 2;
+        const sway = Math.sin(agora / 1400 + phase + i * 0.25) * 0.05;
+        const ang = baseAng + sway;
+        const dx = Math.cos(ang);
+        const dy = Math.sin(ang);
+        const tipX = crownX + dx * comprimento;
+        const tipY = crownY + dy * comprimento + comprimento * 0.35; // droop
+        const cX = crownX + dx * comprimento * 0.5;
+        const cY = crownY + dy * comprimento * 0.5;
+        const segs = 11;
+        const pts: [number, number][] = [];
+        for (let s = 0; s <= segs; s++) {
+          const t = s / segs;
+          pts.push([
+            (1 - t) * (1 - t) * crownX + 2 * (1 - t) * t * cX + t * t * tipX,
+            (1 - t) * (1 - t) * crownY + 2 * (1 - t) * t * cY + t * t * tipY,
+          ]);
+        }
+        // Corpo da folha (lâmina) para dar volume — mais que linhas soltas.
+        const meia = (t: number) => Math.sin(Math.PI * Math.min(1, t * 1.05)) * comprimento * 0.12;
+        const ladoA: [number, number][] = [];
+        const ladoB: [number, number][] = [];
+        for (let s = 0; s <= segs; s++) {
+          const t = s / segs;
+          const [px, py] = pts[s];
+          const [ax, ay] = pts[Math.max(0, s - 1)];
+          const [bx, by] = pts[Math.min(segs, s + 1)];
+          let ttx = bx - ax;
+          let tty = by - ay;
+          const l = Math.hypot(ttx, tty) || 1;
+          ttx /= l;
+          tty /= l;
+          const hw = meia(t);
+          ladoA.push([px - tty * hw, py + ttx * hw]);
+          ladoB.push([px + tty * hw, py - ttx * hw]);
+        }
+        ctx.beginPath();
+        ctx.moveTo(ladoA[0][0], ladoA[0][1]);
+        for (const p of ladoA) ctx.lineTo(p[0], p[1]);
+        for (let s = ladoB.length - 1; s >= 0; s--) ctx.lineTo(ladoB[s][0], ladoB[s][1]);
+        ctx.closePath();
+        ctx.fillStyle = "#1e6b46";
+        ctx.fill();
+
+        // Ráquis (nervura central).
+        ctx.strokeStyle = "#186040";
+        ctx.lineWidth = Math.max(2, wd * 0.007);
+        ctx.beginPath();
+        ctx.moveTo(pts[0][0], pts[0][1]);
+        for (const p of pts) ctx.lineTo(p[0], p[1]);
+        ctx.stroke();
+        // Folíolos (densos, apontando pra ponta = folha cheia).
+        ctx.strokeStyle = "#237a4e";
+        ctx.lineWidth = Math.max(1.5, wd * 0.005);
+        for (let s = 1; s < segs; s++) {
+          const t = s / segs;
+          const [px, py] = pts[s];
+          const [px2, py2] = pts[s - 1];
+          const tx = px - px2;
+          const ty = py - py2;
+          const len = Math.hypot(tx, ty) || 1;
+          const nx = -ty / len;
+          const ny = tx / len;
+          const folLen = (1 - t * 0.7) * comprimento * 0.4;
+          ctx.beginPath();
+          ctx.moveTo(px, py);
+          ctx.lineTo(px + nx * folLen + tx * 0.6, py + ny * folLen + ty * 0.6);
+          ctx.moveTo(px, py);
+          ctx.lineTo(px - nx * folLen + tx * 0.6, py - ny * folLen + ty * 0.6);
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    };
+
     const frame = (agora: number) => {
       if (!rodandoRef.current) return;
       const dt = Math.min((agora - ultimo) / 1000, 0.05);
@@ -397,6 +542,10 @@ export default function Game({ onFim }: { onFim: (pontos: number) => void }) {
         ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
         ctx.fill();
       }
+
+      // Açaizeiras de fundo (laterais), folhas abertas pra fora, com leve balanço.
+      desenharAcaizeira(w * 0.0, h + 20, w * 0.08, h * 0.22, agora, 0, -Math.PI * 0.62, Math.PI * 0.42);
+      desenharAcaizeira(w * 1.0, h + 20, w * 0.92, h * 0.22, agora, 1.7, -Math.PI * 0.38, Math.PI * 0.42);
 
       // Itens (com brilho e rotação).
       ctx.textAlign = "center";
