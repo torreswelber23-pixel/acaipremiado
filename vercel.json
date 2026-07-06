@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/fechar-ciclo",
+      "schedule": "59 2 * * 1"
+    }
+  ]
+}
