@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { pedir } from "@/lib/clientApi";
 
 interface Relatorio {
   motorista: string;
@@ -20,16 +21,15 @@ export default function MotoristaPage() {
     setCarregando(true);
     setErro("");
     setRel(null);
-    try {
-      const r = await fetch(`/api/motorista/${encodeURIComponent(token.trim())}/relatorio`);
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.erro || "Erro");
-      setRel(data);
-    } catch (e) {
-      setErro((e as Error).message);
-    } finally {
-      setCarregando(false);
+    const { ok, data, erro } = await pedir<Relatorio>(
+      `/api/motorista/${encodeURIComponent(token.trim())}/relatorio`
+    );
+    setCarregando(false);
+    if (!ok || !data) {
+      setErro(erro || "Erro");
+      return;
     }
+    setRel(data);
   };
 
   return (

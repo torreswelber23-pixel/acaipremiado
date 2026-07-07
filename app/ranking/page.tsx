@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { pedir } from "@/lib/clientApi";
 
 interface LinhaRanking {
   posicao: number;
@@ -22,13 +23,13 @@ export default function RankingPage() {
   const [erro, setErro] = useState("");
 
   useEffect(() => {
-    fetch("/api/ranking?limite=20")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.erro) throw new Error(d.erro);
-        setDados(d);
-      })
-      .catch((e) => setErro(e.message));
+    pedir<RankingResp>("/api/ranking?limite=20").then(({ ok, data, erro }) => {
+      if (!ok || !data) {
+        setErro(erro || "Não foi possível carregar o ranking.");
+        return;
+      }
+      setDados(data);
+    });
   }, []);
 
   return (

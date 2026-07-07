@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Game from "@/components/Game";
+import { pedir } from "@/lib/clientApi";
 
 type Fase = "inicio" | "pagando" | "jogar" | "fim" | "resultado" | "erro";
 
@@ -49,22 +50,19 @@ export default function Home() {
   const criarPartida = useCallback(async () => {
     setCarregando(true);
     setErro("");
-    try {
-      const r = await fetch("/api/partida/criar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ qr_token: qrToken }),
-      });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.erro || "Erro ao criar partida");
-      setPartida(data);
-      setFase("pagando");
-    } catch (e) {
-      setErro((e as Error).message);
+    const { ok, data, erro } = await pedir<Partida>("/api/partida/criar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ qr_token: qrToken }),
+    });
+    setCarregando(false);
+    if (!ok || !data) {
+      setErro(erro || "Erro ao criar partida");
       setFase("erro");
-    } finally {
-      setCarregando(false);
+      return;
     }
+    setPartida(data);
+    setFase("pagando");
   }, [qrToken]);
 
   // Polling do pagamento.
@@ -72,15 +70,12 @@ export default function Home() {
     if (fase !== "pagando" || !partida) return;
     limparPoll();
     pollRef.current = setInterval(async () => {
-      try {
-        const r = await fetch(`/api/partida/status/${partida.transacao_id}`);
-        const data = await r.json();
-        if (data.liberado) {
-          limparPoll();
-          setFase("jogar");
-        }
-      } catch {
-        /* segue tentando */
+      const { data } = await pedir<{ liberado?: boolean }>(
+        `/api/partida/status/${partida.transacao_id}`
+      );
+      if (data?.liberado) {
+        limparPoll();
+        setFase("jogar");
       }
     }, 1500);
     return () => limparPoll();
@@ -95,26 +90,23 @@ export default function Home() {
     if (!partida) return;
     setCarregando(true);
     setErro("");
-    try {
-      const r = await fetch("/api/score", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transacao_id: partida.transacao_id,
-          nome,
-          whatsapp,
-          pontos,
-        }),
-      });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.erro || "Erro ao enviar pontuação");
-      setResultado(data);
-      setFase("resultado");
-    } catch (e) {
-      setErro((e as Error).message);
-    } finally {
-      setCarregando(false);
+    const { ok, data, erro } = await pedir<Resultado>("/api/score", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        transacao_id: partida.transacao_id,
+        nome,
+        whatsapp,
+        pontos,
+      }),
+    });
+    setCarregando(false);
+    if (!ok || !data) {
+      setErro(erro || "Erro ao enviar pontuação");
+      return;
     }
+    setResultado(data);
+    setFase("resultado");
   }, [partida, nome, whatsapp, pontos]);
 
   const jogarDeNovo = () => {

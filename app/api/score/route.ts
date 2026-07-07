@@ -110,6 +110,10 @@ export async function POST(req: Request) {
         { status: 409 }
       );
     }
-    throw err;
+    console.error("Erro em /api/score:", err);
+    return NextResponse.json(
+      { erro: "Erro no servidor ao salvar a pontuação. Tente de novo." },
+      { status: 500 }
+    );
   }
 }

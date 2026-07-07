@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { pedir } from "@/lib/clientApi";
 
 interface RespOk {
   ok: true;
@@ -20,21 +21,18 @@ export default function ResgatePage() {
     setCarregando(true);
     setErro("");
     setResposta(null);
-    try {
-      const r = await fetch("/api/cupom/resgatar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ codigo }),
-      });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.erro || "Erro ao resgatar");
-      setResposta(data);
-      setCodigo("");
-    } catch (e) {
-      setErro((e as Error).message);
-    } finally {
-      setCarregando(false);
+    const { ok, data, erro } = await pedir<RespOk>("/api/cupom/resgatar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ codigo }),
+    });
+    setCarregando(false);
+    if (!ok || !data) {
+      setErro(erro || "Erro ao resgatar");
+      return;
     }
+    setResposta(data);
+    setCodigo("");
   };
 
   return (

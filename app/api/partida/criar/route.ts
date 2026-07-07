@@ -24,6 +24,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ erro: "qr_token obrigatório" }, { status: 400 });
   }
 
+  try {
+    return await criar(qrToken);
+  } catch (e) {
+    console.error("Erro em /api/partida/criar:", e);
+    return NextResponse.json(
+      { erro: "Não foi possível iniciar a partida. O banco pode não estar configurado." },
+      { status: 500 }
+    );
+  }
+}
+
+async function criar(qrToken: string) {
   const motorista = await queryOne<{ id: number; ativo: boolean }>(
     "SELECT id, ativo FROM motoristas WHERE qr_token = $1",
     [qrToken]
