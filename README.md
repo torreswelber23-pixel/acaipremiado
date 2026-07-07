@@ -90,10 +90,18 @@ vercel.json                   Agendamento do Cron
 
 ## Pix
 
-`lib/pix/` traz uma **abstração de provedor**. A V1 inclui o provedor `dev`
-(não cobra ninguém, confirma sozinho) para rodar o loop completo. Para produção,
-implemente um provider real (Mercado Pago / Efí / Asaas) que satisfaça a interface
-`PixProvider` (`lib/pix/types.ts`) e registre-o em `lib/pix/index.ts`. O contrato:
+`lib/pix/` traz uma **abstração de provedor**. Provedores incluídos:
+
+- **`dev`** — não cobra ninguém, confirma sozinho (para testar o loop).
+- **`mercadopago`** — cobrança Pix real via Mercado Pago. Defina
+  `PIX_PROVIDER=mercadopago` e `MERCADOPAGO_ACCESS_TOKEN` (credencial de produção).
+  O dinheiro cai na conta MP dona do token; a chave Pix é a configurada nessa conta.
+  Configure também o webhook `https://SEU_DOMINIO/api/pix/webhook` no painel do
+  Mercado Pago (ou deixe `NEXT_PUBLIC_BASE_URL` setado que o app manda a
+  `notification_url` automaticamente).
+
+Para outro PSP (Efí / Asaas), implemente a interface `PixProvider`
+(`lib/pix/types.ts`) e registre em `lib/pix/index.ts`. O contrato:
 
 - `criarCobranca()` → gera a cobrança e devolve `{ txid, copiaECola }`;
 - `interpretarWebhook()` → lê o POST do PSP e devolve `{ txid, pago }`.

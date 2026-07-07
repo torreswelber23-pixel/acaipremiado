@@ -1,5 +1,6 @@
 import type { PixProvider } from "./types";
 import { devPix } from "./dev";
+import { mercadoPagoPix } from "./mercadopago";
 
 export type { PixProvider } from "./types";
 
@@ -19,6 +20,10 @@ export function getPixProvider(): PixProvider {
   switch (nome) {
     case "dev":
       return devPix;
+    case "mercadopago":
+    case "mercado_pago":
+    case "mp":
+      return mercadoPagoPix;
     default:
       throw new Error(
         `Provedor Pix "${nome}" não implementado. ` +
